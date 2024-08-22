@@ -1,5 +1,7 @@
+type = module
 name = Taxonomy Access Control Lite
 description = Simple access control based on categories.
-dependencies[] = taxonomy
-core = 7.x
+backdrop = 1.x
 package = Access control
+
+dependencies[] = taxonomy

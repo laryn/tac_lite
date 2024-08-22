@@ -10,40 +10,41 @@
  */
 
 /**
- * Implementation of hook_form_alter().
+ * Implements hook_form_alter().
  */
 function tac_lite_create_form_alter(&$form, $form_state, $form_id) {
+  $config = config('tac_lite.settings');
   if (strpos($form_id, 'node_form') !== FALSE) {
     global $user;
 
     if (user_access('administer tac_lite')) {
-      // no need to restrict based on update permission in this cases
+      // No need to restrict based on update permission in this case.
       return;
     }
 
-    // the vocabularies containing protected info.
-    $vids = variable_get('tac_lite_categories', array(0));
+    // The vocabularies containing protected info.
+    $categories = $config->get('categories');
 
-    // the terms this user is allowed to edit
+    // The terms this user is allowed to edit.
     $tids = array();
-    for ($i = 1; $i <= variable_get('tac_lite_schemes', 1); $i++) {
-      $config = _tac_lite_config($i);
-      if ((isset($config['tac_lite_create']) && $config['tac_lite_create']) ||
-        in_array('grant_update', $config['perms'])) {
+    for ($i = 1; $i <= $config->get('schemes'); $i++) {
+      $scheme_info = _tac_lite_scheme_info($i);
+      if (!empty($scheme_info['tac_lite_create']) ||
+        in_array('grant_update', $scheme_info['perms'])) {
         $tids = array_merge($tids, _tac_lite_user_tids($user, $i));
       }
     }
 
-    // Go through all of the fields in the system to find the ones we want use
+    // Go through all of the fields in the system to find the ones we want use.
     $term_fields = array();
     $info = field_info_fields();
-    foreach($info as $key => $value){
+    foreach ($info as $key => $value) {
       // First check for taxonomy_term_reference fields.
       if ($value['type'] == 'taxonomy_term_reference') {
         // Then check to see if they are associated with this node type (entity bundle).
         if (isset($value['bundles']['node'])) {
           if (in_array($form['#bundle'], $value['bundles']['node'])) {
-            // Add an entry to our term_fields in the form of field name => vocabulary machine name
+            // Add an entry to our term_fields in the form of field name => vocabulary machine name.
             $term_fields[$key] = $value['settings']['allowed_values'][0]['vocabulary'];
           }
         }
@@ -51,25 +52,22 @@ function tac_lite_create_form_alter(&$form, $form_state, $form_id) {
     }
 
     // Now that we have the names of the fields, go through each one in the form.
-    foreach($term_fields as $field_name => $vocab_name) {
+    foreach ($term_fields as $field_name => $vocab_name) {
       // Get the language key so we can find the correct element in the field.
       $field_language = $form[$field_name]['#language'];
 
-      // Avoid PHP errors
+      // Avoid PHP errors.
       if (empty($form[$field_name]) || empty($form[$field_name][$field_language])) {
         continue;
       }
 
       // Skip auto complete fields as they are not supported.
-      if ($form[$field_name][$field_language]['#type'] != 'select' && $form[$field_name][$field_language]['#type'] != 'radios'){
+      if ($form[$field_name][$field_language]['#type'] != 'select' && $form[$field_name][$field_language]['#type'] != 'radios') {
         continue;
       }
 
-      // Get the vocabulary info so we can get the vid.
-      $v = taxonomy_vocabulary_machine_name_load($vocab_name);
-
       // We only want to act on this field if it is tied to a vocabulary we are set to control.
-      if(!in_array($v->vid, $vids)) {
+      if (!in_array($vocab_name, $categories)) {
         continue;
       }
 
@@ -95,9 +93,9 @@ function tac_lite_create_form_alter(&$form, $form_state, $form_id) {
 
       // If there are no options left, but this field is required then throw a 404.
       if (count($form[$field_name][$field_language]['#options']) == 0 && !empty($form[$field_name]['#required'])) {
-        drupal_set_message(t('You have no permissions to add content to the required %name vocabulary. Please contact the site administrator if you believe you should have permission to add content.', array('%name' => $form[$field_name]['#title'])));
-        drupal_access_denied();
-        exit();
+        backdrop_set_message(t('You have no permissions to add content to the required %name vocabulary. Please contact the site administrator if you believe you should have permission to add content.', array('%name' => $form[$field_name]['#title'])));
+        backdrop_access_denied();
+        backdrop_exit();
       }
 
       // Don't show if the only option left is <none>.
@@ -114,13 +112,13 @@ function tac_lite_create_form_alter(&$form, $form_state, $form_id) {
     }
   }
   elseif ($form_id == 'tac_lite_admin_scheme_form') {
-    $config = $form['#tac_lite_config'];
+    $scheme_info = $form['#tac_lite_scheme_info'];
     $scheme = $form_state['build_info']['args'][0];
-    if (!empty($form['tac_lite_config_scheme_' . $scheme])) {
-      $form['tac_lite_config_scheme_' . $scheme]['tac_lite_create'] = array(
+    if (!empty($form['config_scheme_' . $scheme])) {
+      $form['config_scheme_' . $scheme]['tac_lite_create'] = array(
         '#type' => 'checkbox',
         '#title' => 'Visibility on create and edit forms',
-        '#default_value' => isset($config['tac_lite_create']) ? $config['tac_lite_create'] : FALSE,
+        '#default_value' => isset($scheme_info['tac_lite_create']) ? $scheme_info['tac_lite_create'] : FALSE,
         '#description' => t('Show terms when creating content.  This <strong>does not</strong> control which users can create a given content type. This <strong>does</strong> control which terms appear on the node edit forms.  <br/>Note that schemes granting <em>update</em> permission (above) imply <em>visibility on forms</em> as well.'),
       );
     }

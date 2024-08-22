@@ -1,5 +1,7 @@
+type = module
 name = Taxonomy Access Control Lite Create
 description = Hide taxonomy terms on node add/edit forms.
-dependencies[] = tac_lite
-core = 7.x
+backdrop = 1.x
 package = Access control
+
+dependencies[] = tac_lite

@@ -358,12 +358,13 @@ function tac_lite_form_alter(&$form, &$form_state, $form_id){
       );
       for ($i = 1; $i <= $config->get('schemes'); $i++) {
         $scheme_info = _tac_lite_scheme_info($i);
+        $realm = $scheme_info['realm'];
         if ($scheme_info['name']) {
           $perms = $scheme_info['perms'];
           if ($scheme_info['term_visibility']) {
             $perms[] = t('term visibility');
           }
-          $form['tac_lite'][$scheme_info['realm']] = array(
+          $form['tac_lite'][$realm] = array(
             '#type' => 'fieldset',
             '#title' => $scheme_info['name'],
             '#description' => t('This scheme controls %perms.', array('%perms' => implode(' and ', $perms))),
@@ -377,13 +378,13 @@ function tac_lite_form_alter(&$form, &$form_state, $form_id){
             // TODO: Should we be looking in form_state also for the default value?
             // (Might only be necessary if we are adding in custom validation?)
             $default_values = array();
-            if (!empty($form['#user']->data[$scheme_info['realm']])) {
-              if (isset($form['#user']->data[$scheme_info['realm']][$selected_vocabulary])) {
-                $default_values = $form['#user']->data[$scheme_info['realm']][$selected_vocabulary];
+            if (!empty($form['#user']->data[$realm])) {
+              if (isset($form['#user']->data[$realm][$selected_vocabulary])) {
+                $default_values = $form['#user']->data[$realm][$selected_vocabulary];
               }
             }
-            $form['tac_lite'][$scheme_info['realm']][$selected_vocabulary] = _tac_lite_term_select($all_vocabularies[$selected_vocabulary], $default_values);
-            $form['tac_lite'][$scheme_info['realm']][$selected_vocabulary]['#description'] = t('Grant permission to this user by selecting terms.  Note that permissions are in addition to those granted based on user roles.');
+            $form['tac_lite'][$realm][$selected_vocabulary] = _tac_lite_term_select($all_vocabularies[$selected_vocabulary], $default_values);
+            $form['tac_lite'][$realm][$selected_vocabulary]['#description'] = t('Grant permission to this user by selecting terms.  Note that permissions are in addition to those granted based on user roles.');
           }
         }
       }
@@ -413,8 +414,9 @@ function tac_lite_user_presave(&$account) {
   // Go through each scheme and copy the form value into the data element.
   for ($i = 1; $i <= config_get('tac_lite.settings', 'schemes'); $i++) {
     $scheme_info = _tac_lite_scheme_info($i);
-    if ($scheme_info['realm'] && isset($account->{$scheme_info['realm']})) {
-      $account->data[$scheme_info['realm']] = $account->{$scheme_info['realm']};
+    $realm = $scheme_info['realm'];
+    if ($realm && isset($account->{$realm})) {
+      $account->data[$realm] = $account->tac_lite[$realm];
     }
   }
 }
@@ -603,7 +605,7 @@ function _tac_lite_user_tids($account, $scheme) {
   $scheme_info = _tac_lite_scheme_info($scheme);
   $realm = $scheme_info['realm'];
   if (isset($account->data[$realm]) && count($account->data[$realm])) {
-    // $account->$realm is array. Keys are vocabulary machine names, values are array of tids within that vocabulary, to which the user has access
+    // $account->$realm is array. Keys are vocabulary machine names, values are array of tids within that vocabulary, to which the user has access.
     foreach ($account->data[$realm] as $tids) {
       if (count($tids)) {
         $grants = array_merge($grants, $tids);

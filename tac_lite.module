@@ -641,16 +641,20 @@ function _tac_lite_user_tids($account, $scheme) {
  * requested op.
  */
 function tac_lite_node_grants($account, $op) {
-  $grants = array();
-  for ($i = 1; $i <= config_get('tac_lite.settings', 'schemes'); $i++) {
-    $scheme_info = _tac_lite_scheme_info($i);
-    if (in_array('grant_' . $op, $scheme_info['perms'])) {
-      $grants[$scheme_info['realm']] = _tac_lite_user_tids($account, $i);
+  $grants = &backdrop_static(__FUNCTION__);
+
+  if (!isset($grants[$account->uid][$op])) {
+    $user_grants = array();
+    for ($i = 1; $i <= config_get('tac_lite.settings', 'schemes'); $i++) {
+      $scheme_info = _tac_lite_scheme_info($i);
+      if (in_array('grant_' . $op, $scheme_info['perms'])) {
+        $user_grants[$scheme_info['realm']] = _tac_lite_user_tids($account, $i);
+      }
     }
+    $grants[$account->uid][$op] = $user_grants;
   }
-  if (count($grants)) {
-    return $grants;
-  }
+
+  return $grants[$account->uid][$op];
 }
 
 /**

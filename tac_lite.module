@@ -535,24 +535,31 @@ function tac_lite_node_get_terms($node) {
   if (!isset($terms[$node->nid])) {
     // Get tids from all taxonomy_term_reference fields.
     $fields = field_info_fields();
+    $tids = array();
     foreach ($fields as $field_name => $field) {
       // Our goal is to get all terms, regardless of language, associated with the node.  Does the code below do that?
       if ($field['type'] == 'taxonomy_term_reference' && field_info_instance('node', $field_name, $node->type)) {
         if (($items = field_get_items('node', $node, $field_name)) && is_array($items)) {
           foreach ($items as $item) {
-            // Sometimes $item contains only tid, sometimes entire term.  Thanks Drupal for remaining mysterious!
-            // We need to term to determine the vocabulary id.
+            // Sometimes $item contains only tid, sometimes entire term.  Thanks
+            // Backdrop for remaining mysterious!
             if (!empty($item['taxonomy_term'])) {
               $term = $item['taxonomy_term'];
+              $terms[$node->nid][$term->vocabulary][$term->tid] = $term;
             }
             else {
-              $term = taxonomy_term_load($item['tid']);
-            }
-            if ($term) {
-              $terms[$node->nid][$term->vocabulary][$term->tid] = $term;
+              // Save term IDs for bulk loading later.
+              $tids[] = $item['tid'];
             }
           }
         }
+      }
+    }
+    // Bulk load terms from term IDs.
+    if (!empty($tids)) {
+      $terms_loaded = taxonomy_term_load_multiple($tids);
+      foreach ($terms_loaded as $term) {
+        $terms[$node->nid][$term->vocabulary][$term->tid] = $term;
       }
     }
   }

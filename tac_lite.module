@@ -410,7 +410,7 @@ function tac_lite_form_alter(&$form, &$form_state, $form_id){
  * @param $account
  *   The user object on which the operation is performed.
  */
-function tac_lite_user_presave(&$account) {
+function tac_lite_user_presave($account) {
   // Go through each scheme and copy the form value into the data element.
   for ($i = 1; $i <= config_get('tac_lite.settings', 'schemes'); $i++) {
     $scheme_info = _tac_lite_scheme_info($i);
